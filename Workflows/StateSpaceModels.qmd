@@ -1,0 +1,112 @@
+---
+title: "KalmanFilter"
+format: html
+editor: visual
+---
+
+## Introduction
+The purpose of this document is to explor the kalman filter as an estimation technique for
+large models.
+
+## Create some fake data
+
+```{r fake}
+n= 200
+
+x = rnorm(n,)
+
+
+y= 2 + 4*x + rnorm(n)
+
+
+plot(x,y)
+
+```
+
+
+
+
+Now I will create the Kalman filter considering known variance of $\sigma^2=1$
+
+The details for this are on page 339
+
+```{r kalman}
+
+X <- model.matrix(~x)
+
+# Build model
+ # Inititialization of alpha1 and alpha2
+
+kalman <- function(x,y,alpha0,sig20){
+    alpha = alpha0
+        
+    V = diag(2)*100
+    
+    sig2 <- sig20
+    
+    for (a in 1:4) {
+      
+    for (i in 1:length(x)){
+        alphas[i,] = alpha
+        
+        Y = y[i]
+        Z = matrix(X[i,],ncol = 2)
+        
+        # State matrix
+        F_ = diag(2)
+        
+       
+        ###### Prediction step
+        alphaTgivt <- F_%*% alpha
+        
+        VTgivt <- F_%*%V%*%t(F_)
+        
+        ### Correction step
+        Kt <- VTgivt %*% t(Z)%*% (Z%*%VTgivt%*%t(Z)+sig2)^(-1)
+        
+        alpha <- alphaTgivt + Kt%*%(Y-(Z%*%alphaTgivt))
+        V = VTgivt - Kt%*%Z%*%VTgivt
+    }
+    
+    # Update sig2
+    sig2 = 1/(length(x)-2) * (sum((y-X%*%alpha)^2))
+
+    }
+    
+    return(list(alpha=alpha, sig2=sig2))
+}
+
+
+plot(x,y)
+abline(alpha)
+
+```
+
+
+Now I would like to fit a nonlinear model using a spline. 
+
+
+```{r splines with kalman filter}
+n = 200
+
+x <- rnorm(n)
+
+y = 4*sin(3*x)+ rnorm(n)
+
+plot(x,y)
+
+
+# Test with bspline
+library(splines)
+library(mgcv)
+
+test<- gam(y~s(x))
+
+
+ggplot()+
+  geom_point(aes(x=x,y=y))+
+  geom_line(aes(x=x,y=test$fitted.values))
+
+
+```
+

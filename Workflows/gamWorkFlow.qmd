@@ -1,0 +1,84 @@
+---
+title: "Method exploration"
+format: html
+---
+
+## Introduction
+
+In this document, I will be exploring various models for the skin PPG data. The analysis data in the data folder contains the log2(CPM) expression values for each sample. I will start by exploring GAM models to model the trajectory from SP to AK Center skin.
+
+```{r setup}
+library(data.table)
+library(mgcv)
+library(ggplot2)
+```
+
+# load the data
+
+Here I am loading the data in which contain
+
+```{r loadData}
+# Load data
+analysisData <- data.table(read.csv("../Data/GeneAnalysisData.csv"))
+
+
+# dimensions of analysisData
+dim(analysisData)
+
+
+analysisData[1:10,1:10]
+
+
+
+# Get names of genes
+genes <- names(analysisData)[!(names(analysisData) %in% c("Sample_ID","SubjectID","AOIInfo","Region","RegionOrdinal"))]
+
+
+# Get long data
+#melt(analysisData, id.vars =c("Sample_ID","SubjectID","AOIInfo","Region","RegionOrdinal") ,variable.name = "Gene",value.name = "exp")[
+ # ,.(Mean=mean(exp), SD= sd(exp)),.(AOIInfo,Region,Gene)]
+
+
+```
+
+## Modeling genes with a gam function
+
+Here I am only going to model one gene only focusing on SP - AK center samples
+
+```{r 1 gene}
+
+# Filter data so that is is SP to AK Center I will also stratifiy by AOI
+
+spAKEpi <- analysisData[Region %in%  c("SunProtected","SunDamaged","AKEdge","AKCenter") & AOIInfo=="Epi",]
+
+
+spAKDerm <- analysisData[Region %in%  c("SunProtected","SunDamaged","AKEdge","AKCenter") & AOIInfo=="Derm",]
+
+
+
+# For this analysis I will model CD270 using a spline 
+modCD270 <- gam(CD247 ~ s(RegionOrdinal, bs="cr",k=3), data = spAKDerm)
+
+summary(modCD270)
+
+ggplot(spAKDerm, aes(x=RegionOrdinal,y=CD247)) +
+  geom_point() +
+  geom_line(aes(x=RegionOrdinal,y=modCD270$fitted.values))
+
+
+
+##################################################################
+## Model two genes CD247 and CD27
+##################################################################
+cols <- c("RegionOrdinal",genes[1:1000])
+dermCD247AndCD27 <- melt(spAKDerm[,..cols], id.vars = "RegionOrdinal", value.name = "exp",variable.name = "gene")
+
+
+mod <- gam(exp ~ s(RegionOrdinal, bs="cr",k=3,by=gene), data = dermCD247AndCD27)
+
+summary(mod)
+
+
+plot(mod)
+
+```
